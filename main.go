@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"strings"
@@ -12,8 +14,9 @@ var port serial.Port
 
 func main() {
 	openPort()
-	var buffer []byte = []byte{0x44, 0x45, 0x46, 0x47}
-	sendBuffer(buffer)
+	//	var buffer []byte = []byte{0x44, 0x45, 0x46, 0x47}
+	//sendBuffer(buffer)
+	sendProbe()
 	readBuffer()
 }
 
@@ -35,6 +38,34 @@ func openPort() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func sum(array []byte) int {
+	result := 0
+	for _, v := range array {
+		result += int(v)
+	}
+	return result
+}
+
+func sendProbe() {
+	// FF 00 FF A5 00 {dst} {src} {type} {len} ... {chksum}
+	buf := new(bytes.Buffer)
+	cmd := []byte{0xFF, 0x00, 0xFF, 0xA5, 0x00, 0x60, 0x10, 0x07, 0x00}
+	err := binary.Write(buf, binary.BigEndian, cmd)
+	if err != nil {
+		fmt.Println("binary.Write failed:", err)
+	}
+	chksum := sum(cmd[3:])
+	err = binary.Write(buf, binary.BigEndian, chksum)
+	if err != nil {
+		fmt.Println("binary.Write failed:", err)
+	}
+	fmt.Printf("% x", buf.Bytes())
+
+	cmd = append(cmd, chksum)
+	sendBuffer(cmd)
+
 }
 
 func sendBuffer(buffer []byte) {
